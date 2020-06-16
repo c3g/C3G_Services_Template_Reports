@@ -1,0 +1,15 @@
+#file system
+
+
+├── 01_fastqc_report
+├── DGE
+├── Result_Analysis_Petunia
+    ├── 01_fastqc_report
+    └── output_FC_2.0_FDR_0.05
+        └── Tables
+            └── GO_and_KEGG_analysis
+
+
+#> mkdir -p  DGE 01_fastqc_report
+# Copy fastqc_report.zip in 01_fastqc_report folder
+copy genpipes output trimReadsetTable.tsv into home folder

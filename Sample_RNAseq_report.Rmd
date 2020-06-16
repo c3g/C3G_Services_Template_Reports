@@ -1,0 +1,1710 @@
+---
+title: "Sample RNAseq C3G Report"
+author: "Senthilkumar Kailasam"
+#date: "16/04/2020"
+date: "`r Sys.Date()`"
+#site: bookdown::bookdown_site
+output:
+  bookdown::html_document2: 
+    toc: true
+    toc_float: true
+    number_sections: True
+    code_folding: "show"
+  # documentclass: book
+
+---
+
+<!-- general_behavior_setup-->
+```{r setup, include=FALSE}
+##-- Set the root directory for the document
+knitr::opts_chunk$set(echo=FALSE, results='show',message=FALSE,root.dir ='/Users/skailasam/Documents/Petunia_RNAseq_report/Sample_RNAseq_report')
+
+library(bookdown)
+library(kableExtra)
+library("rmarkdown") # Make cool dynamic documents
+library("knitr") # Run R Code Chunks
+library(DT)
+```
+
+
+<!--CSS-->
+```{r results="asis"}
+cat("
+<style>
+caption {
+      color: #4863A0;
+      font-weight: bold;
+      font-size: 1.1em;
+}
+</style>
+<style>
+p.comment {
+background-color: #DBDBDB;
+padding: 10px;
+border: 1px solid black;
+margin-left: 25px;
+border-radius: 5px;
+font-style: italic;
+}
+</style>
+")
+```
+
+```{css}
+.badCode {
+background-color: #D3D3D3;
+}
+ .codeDisplay {
+ #background: #f4f4f4;
+      background-color: #D3D3D3;
+  border: 1px solid #ddd;
+  border-left: 3px solid #f2334c;
+  color: #666;
+  page-break-inside: avoid;
+  font-family: monospace;
+  font-size: 15px;
+  line-height: 1.6;
+  margin-bottom: 1.6em;
+  max-width: 100%;
+  overflow: auto;
+  padding: 1em 1.5em;
+  display: block;
+  word-wrap: break-word;
+}
+```
+
+<br>
+<br>
+
+# General Information {#firstpage}
+
+<br>
+
+- Project ID: C3G-IM-427
+
+
+- Primary Contact: Dr Isabel Molina
+
+
+- Project Manager: François Levfebvre
+
+
+- Start Date: Apr 14th, 2020
+
+<br>
+
+```{r, echo=FALSE,out.width = "400px"}
+#knitr::include_graphics(rep("images/Hazt_fig.jpg"))
+```
+
+
+```{r eval=FALSE,echo=F}
+#install.packages("bookdown")
+# or the development version
+# devtools::install_github("rstudio/bookdown")
+```
+
+
+```{r include=FALSE}
+# automatically create a bib database for R packages
+knitr::write_bib(c(
+  .packages(), 'bookdown', 'knitr', 'rmarkdown'
+), 'packages.bib')
+```
+<br/>
+
+
+<br>
+
+# Project Information {#projinfo}
+
+## Objectives:
+ 
+ 
+  * Analyze two groups of samples:
+    
+    + Nicotiana tobacum and 
+    + Petunia hybrida
+
+  * No. of samples: 12 x2 ( 4 groups; 3 replicates each)
+  
+  * Groups to compare: all vs all
+ 
+  * Obtain a list of the differentially expressed gene in each development stage and compare it between each of the 4 stages 
+ 
+  * Comparison to arabidopsis: Identify homologs of those differentially expressed genes in Arabidopsis.
+  
+  Note: Letter corresponds to species, T=tobacco and P= Petunia, first number: dev. stage (1, 2, 2.5 or 4), last number: replicate, numbers range from 1 to 6 but only 3 are submitted per stage:
+T1.1; T1.2; T1.3; T2.1; T2.2; T2.3; T2.5.1; T2.5.2; T2.5.3; T4.2; T4.3; T2.4
+P1.3; P1.4; P1.5; P2.1; P2.2; P2.3; P2.5.1; P2.5.3; P2.5.4; P4.1; P4.3; P2.6
+
+
+
+
+
+# Petunia hybrida RNA seq analysis {#petunia}
+
+
+## Sample Information
+
+
+## Preprocessing and Quality check {#qc.pet}
+
+
+###   Reference Genome
+
+
+ FASTA: Petunia_axillaris_v1.6.2_genome.fasta
+ 
+ GFF: Petunia_axillaris_v1.6.2_gene_models.gff                  
+ 
+ 
+ Source : [https://solgenomics.net/organism/Petunia_axillaris/genome](https://solgenomics.net/organism/Petunia_axillaris/genome)
+
+
+
+###  FASTQC Output of the raw reads
+
+
+```{r,echo=FALSE,eval=FALSE}
+dir.create("Result_Analysis_Petunia/01_fastqc_report",showWarnings = TRUE, recursive = TRUE)
+suppressMessages(library(fastqcr))
+
+
+##-- Run fastqc on raw reads or trimmed reads and place it the folder 
+
+# Using bash script to get fastqc report.
+# make sure you have GNU parallel installed in machine.
+# > find -name "*fastq.gz" | parallel fastqc {} -o 01_
+
+
+# Demo QC dir
+
+qc.dir <- c("Result_Analysis_Petunia/01_fastqc_report/")
+qc.files <- list.files(qc.dir, full.names = TRUE)
+
+qc <- qc_aggregate(qc.dir)
+library(dplyr)
+ok<- qc %>%
+  select(sample, module, status) %>%    
+  filter(status %in% c("WARN", "FAIL")) %>%
+  arrange(sample)
+
+
+# Inspecting QC Problems
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+# See which modules failed in the most samples
+#qc_fails(qc, "module")
+# Or, see which samples failed the most
+#qc_fails(qc, "sample")
+
+# Building Multi QC Reports
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+qc_report(qc.dir, result.file = "Result_Analysis_Petunia/01_fastqc_report/multi-qc-report", preview = FALSE)
+ 
+# One-Sample QC report with plot interpretations:
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#one_sample_qc.file <- qc.files[1]
+ #qc_report(one_sample_qc.file, result.file = "../01_fastqcreport/one-sample-report",interpret = FALSE, preview = FALSE)
+ #2IPPDPP_1908_Hazteca_1000ug_kg 2IPPDPP_1908_Hazteca_Control   B2IPPP_1908_Hazteca_1000ug_kg  B2IPPP_1908_Hazteca_Control
+
+
+```
+
+<!-- ##-- Updte the path for this file so you can visualize it in a linked HTML page. -->
+ [Combined FastQC Report fo All Samples](Result_Analysis_Petunia/01_fastqc_report/multi-qc-report.html)
+
+
+
+### Trimming statistics summary
+
+
+ Trim Table \@ref(tab:table-sample-info1).
+<!-- ##-- Copy the trimReadsetTable.tsv file from genpipes output to the folder below. -->
+```{r table-sample-info1, eval=TRUE,echo=FALSE}
+df<- read.csv("trimReadsetTable.tsv", header = T,sep = "\t")
+knitr::kable(df,caption = "Retained percentage of reads after trimming.")	
+#datatable(df,)
+```
+
+<br>
+
+<!-- ##-- MAIN SCRIPT TO READ RAWREADCOUNT FILES -->
+
+```{r}
+
+
+a <- c(1:100)
+figcount <- rep(sprintf("Figure_%02d_", a))
+cnt <- 0
+
+
+# ##############################################################################################################################
+dir.create('/Users/skailasam/Documents/Petunia_RNAseq_report/Sample_RNAseq_report/Result_Analysis_Petunia/output_FC_2.0_FDR_0.05/Tables',showWarnings = TRUE, recursive = TRUE)
+figdir <-
+  c(
+    "/Users/skailasam/Documents/Petunia_RNAseq_report/Sample_RNAseq_report/Result_Analysis_Petunia/output_FC_2.0_FDR_0.05/"
+  )
+tabdir <-
+  c(
+    "/Users/skailasam/Documents/Petunia_RNAseq_report/Sample_RNAseq_report/Result_Analysis_Petunia/output_FC_2.0_FDR_0.05/Tables/"
+  )
+FCcutoff <- c(2)  # FDR < 5 %
+log2FCcutval <- c(log2(FCcutoff))
+aPVALcutoff <- c(0.05)  # adj.P.val < 5 %
+avglogCPMcutoff <- 4
+# ##############################################################################################################################
+
+
+# myDir<- setwd("output/")
+# file.remove(file.path(myDir, list.files()))
+
+
+
+#library(limma)
+library(edgeR)
+#library(DESeq2)
+# library(statmod)
+# library(sva)
+# library(qvalue)
+library(RColorBrewer)
+# library(plyr)
+library(ggplot2)
+library(reshape2)
+library(gplots)
+# library(Vennerable)
+library(ggpubr)
+library(gridExtra)
+library(grid)
+library(cowplot)
+library(magick)
+library(ComplexHeatmap)
+library(data.table)
+
+## ----readcounts----------------------------------------------------------
+GenewiseCounts <- read.delim("/Users/skailasam/Documents/Petunia_RNAseq_report/Sample_RNAseq_report/DGE/rawCountMatrix.csv",
+                             header = T,
+                             sep = "\t",
+                             row.names = 1
+)
+genes <- GenewiseCounts[c(1)]
+colnames(GenewiseCounts) <-
+  substring(colnames(GenewiseCounts), 1, 7)
+
+#reorder
+#GenewiseCounts<- GenewiseCounts[c("Symbol","DPP_CN1","DPP_CN2","DPP_CN3","DPP_CN4","DPP_CN5","DPP_EX1","DPP_EX2","DPP_EX3","DPP_EX4","DPP_EX5","PPP_CN1","PPP_CN2","PPP_CN3","PPP_CN4","PPP_CN5","PPP_EX1","PPP_EX2","PPP_EX3","PPP_EX4","PPP_EX5")]
+dim(GenewiseCounts)
+
+
+#trim_data_only_DPP
+GenewiseCounts<- GenewiseCounts[c(1:13)]
+
+head(GenewiseCounts)
+#trim_outlier
+#GenewiseCounts <-  GenewiseCounts[-c(2:4,7:9)] #outlier DPP_CN4, DPP_EX1, DPP_EX2,
+
+head(GenewiseCounts)
+
+##-------------------------------------------------------------------------
+samplesheet <- read.delim("/Users/skailasam/Desktop/mnt/projects/Petunia_Tobacco_RNAseq_C3G-IM-427/01_Petunia/Analysis_report/samplesheet.tsv",
+                          header = T,
+                          sep = "\t",
+                          row.names = 1
+)
+samplesheet$Sample_Name<- row.names(samplesheet)
+#samplesheet$Sample_Plate <- NULL ;samplesheet$Sample_Well <- NULL;samplesheet$Description <- NULL; samplesheet$I7_Index_ID<- NULL; samplesheet$index<- NULL
+#samplesheet$RepID<- c(rep(c(1:5), 4))
+#colnames(samplesheet)<- c("SampleNameOld","SampleNameNew","RepID")
+#samplesheet$NameID <- paste0(samplesheet$Sample_Name, samplesheet$RepID)
+samplesheet
+#trim_data_only_DPP
+#samplesheet<- samplesheet[c(1:12),] 
+#samplesheet<- samplesheet[-c(1:10,11:13,16,18,19),] # #outlier DPP_CN4
+samplesheet
+# out_file <- paste0(figdir,"/DataTables_summaryInfo.csv")
+# sep <- ","
+# cat("Note : Contains list of samples considered for this analysis after removing outliers\n", file = out_file)
+# write.table(samplesheet, out_file, append = TRUE, sep = sep)
+
+##-----Group---------------------------------------------------------------
+anno <- data.frame(
+  "Condition" = c("P1_1","P1_2","P1_3","P2_1","P2_2","P2_3","P2.5_1","P2.5_2","P2.5_3","P4_1","P4_2","P4_3"),
+  #  "Condition" = c("DPP_CN","DPP_CN","DPP_CN","DPP_CN","DPP_EX","DPP_EX","DPP_EX","DPP_EX"), #outlier
+  # "Condition" = c("DPP_CN","DPP_CN","DPP_EX","DPP_EX"), #outlier
+  #  "Condition" = samplesheet$SampleNameNew,
+  "Group" = samplesheet$Group,
+  "RepID"     = samplesheet$RepID   #outlier
+)
+#trim samples
+#anno <- anno[-c(2),]
+
+
+group <- factor(anno$Group)
+table(group)
+
+
+
+## ----DGEList, message=FALSE----------------------------------------------
+#Symbol  X06  X13   X4  X11   X5  X12   X10  X09  X08  X07  X03  X02  X01
+#1       2     3    4    5    6   7     8     9    10   11  12    13  14
+
+dge <-
+  DGEList(GenewiseCounts[-c(1)], group = anno$Group, genes =
+            GenewiseCounts[, 1, drop = FALSE])
+#options(digits=3)
+dge$samples
+#rownames(dge$samples) <- c("S1","S2","S3","S4","S5","S6","S7","S8")
+#delete duplicate genesymbols
+o <- order(rowSums(dge$counts))
+dge <- dge[o,]
+d <- duplicated(dge$genes$Symbol)
+dge <- dge[!d,]
+
+
+
+## ----dropNAsymbols-------------------------------------------------------
+dim(dge)
+dge <- dge[!is.na(dge$genes), ]
+dim(dge)
+
+#trim samples
+#dge <- DGEList(GenewiseCounts[c(2, 6, 7, 5, 3)], group=anno$group,genes=GenewiseCounts[,1,drop=FALSE])
+
+
+
+
+## ----design---contrast----------------------------------------------------------
+
+design1 = model.matrix( ~ 0 + Group, data = anno)
+is.fullrank(design1)
+design1
+
+colnames(design1) <- make.names(colnames(design1))
+contr.matrix <-
+  makeContrasts(
+    PhyII_vsI  = (GroupII  - GroupI),
+    PhyIII_vsI  = (GroupIII - GroupI),
+    PhyIV_vsI   = (GroupIV  - GroupI),
+    PhyIII_vsII = (GroupIII - GroupII),
+    PhyIV_vsII  = (GroupIV  - GroupII),
+    PhyIV_vsIII = (GroupIV  - GroupIII),
+    levels = colnames(design1)
+  )
+contr.matrix
+
+
+
+
+
+```
+
+
+```{r}
+##-- FILTER SAMPLE READS and PCA
+
+color4_custom<- c("#a6611a",
+                  "#dfc27d",
+                  "#80cdc1",
+                  "#018571")
+# The names argument tells the barplot to use the sample names on the x-axis
+# The las argument rotates the axis names
+cnt <- cnt + 1
+png(file.path(
+  figdir,
+  paste0(figcount[cnt], "barplot_libray_size_countfilt1.png")
+),width = 10, height = 8,units = 'in', res = 300)
+col.cell <-
+  c("#a6611a",
+    "#dfc27d",
+    "#80cdc1",
+    "#018571")[anno$Group]
+barplot(
+  dge$samples$lib.size,
+  names = anno$Condition,
+  las = 2,
+  col = col.cell
+) +
+  # Add a title to the plot
+  title("Barplot of library sizes")
+dev.off()
+
+
+
+
+v <- voom(dge, design1  , plot = FALSE)
+
+# PCA
+##################################################################
+exp = v$E
+x = prcomp(as.matrix(t(exp)))
+perc_pc <- x$sdev ^ 2 / sum(x$sdev ^ 2) * 100
+
+pca.ap = x$x
+pca.ap = data.frame(pca.ap)
+pca.ap[, "Group"] <- anno$Group
+pca.ap[, "RepID"] <- anno$RepID
+
+i = 1
+j = 2
+cnt <- cnt + 1
+png(file = file.path(
+  figdir,
+  paste0(figcount[cnt], "PCA_sample_group.png")
+),width = 10, height = 8,units = 'in', res = 300)
+
+ggplot(pca.ap, aes(
+  x = eval(parse(text = paste0("PC", i))),
+  y = eval(parse(text = paste0("PC", j))),
+  colour = Group,
+  #   shape = RepID
+)) +
+  geom_point(stroke = 1.5,
+             size = 3,
+             alpha = 1) +
+  scale_color_manual(values = c("#a6611a",
+                                "#dfc27d",
+                                "#80cdc1",
+                                "#018571"
+  )) +
+  
+  # scale_color_manual(values = c("dodgerblue3","seagreen2","firebrick3","#E69F00", "darkmagenta", "#ea10c9")) +
+  scale_shape_manual(values = c(1,2,3,4)) +
+  geom_text(
+    aes(label = RepID),
+    size = 4,
+    check_overlap = FALSE,
+    nudge_y = 3
+  ) +
+  xlab(paste0("PC", i, ": ", round(perc_pc[[i]], 2), "%")) +
+  ylab(paste0("PC", j, ": ", round(perc_pc[[j]], 2), "%")) +
+  #theme_bw(base_size = 15)  +
+  theme(axis.text.x = element_text(color = "grey20", size = 20, angle = 90, hjust = .5, vjust = .5, face = "plain"),
+        axis.text.y = element_text(color = "grey20", size = 20, angle = 0, hjust = 1, vjust = 0, face = "plain"),
+        axis.title.x = element_text(color = "grey20", size = 20, angle = 0, hjust = .5, vjust = 0, face = "plain"),
+        axis.title.y = element_text(color = "grey20", size = 20, angle = 90, hjust = .5, vjust = .5, face = "plain")) +
+  # Change the appearance and the orientation angle
+  # of axis tick labels
+  theme(axis.text.x = element_text(face="plain", color="black",
+                                   size=14, angle=0),
+        axis.text.y = element_text(face="plain", color="black",
+                                   size=14, angle=90)) +
+  
+  
+  
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(colour = "black", fill = NA),
+    panel.background = element_blank(),
+    axis.line = element_line(colour = "black"),
+    axis.line.x= element_line(colour = "black"),
+    axis.line.y.left = element_line(colour = "black")
+  ) + theme(aspect.ratio = 1)
+#+ theme(legend.position = "none")
+#hc <- hclust(dist(as.matrix((t(exp)))), "ward.D2")
+
+dev.off()
+
+
+
+
+### MDS plot
+
+mds <- plotMDS(dge)
+toplot <-
+  data.frame(Dim1 = mds$x,
+             Dim2 = mds$y,
+             RepID = anno$RepID,
+             Group = anno$Group)
+cnt <- cnt + 1
+png(file = file.path(
+  figdir,
+  paste0(figcount[cnt], "MDS_sample_group.png")
+),width = 10, height = 8,units = 'in', res = 300)
+
+ggplot(toplot, aes(Dim1, Dim2, colour = Group)) +
+  geom_text(
+    aes(label = RepID),
+    size = 4,
+    check_overlap = FALSE,
+    nudge_y = 0.05
+  ) +
+  geom_point(stroke = 1.5,
+             size = 3,
+             alpha = 1) +
+  #  title("MDS plot") +
+  xlab("Leading logFC dim 1") +
+  ylab("Leading logFC dim 2") +
+  scale_color_manual(values = c("#a6611a",
+                                "#dfc27d",
+                                "#80cdc1",
+                                "#018571"
+  ))     +
+  #theme_bw(base_size = 15)  +
+  theme(axis.text.x = element_text(color = "grey20", size = 20, angle = 90, hjust = .5, vjust = .5, face = "plain"),
+        axis.text.y = element_text(color = "grey20", size = 20, angle = 0, hjust = 1, vjust = 0, face = "plain"),
+        axis.title.x = element_text(color = "grey20", size = 20, angle = 0, hjust = .5, vjust = 0, face = "plain"),
+        axis.title.y = element_text(color = "grey20", size = 20, angle = 90, hjust = .5, vjust = .5, face = "plain")) +
+  # Change the appearance and the orientation angle
+  # of axis tick labels
+  theme(axis.text.x = element_text(face="plain", color="black",
+                                   size=14, angle=0),
+        axis.text.y = element_text(face="plain", color="black",
+                                   size=14, angle=90)) +
+  
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(colour = "black", fill = NA),
+    panel.background = element_blank(),
+    axis.line = element_line(colour = "black"),
+    axis.line.x= element_line(colour = "black"),
+    axis.line.y.left = element_line(colour = "black")
+  ) + theme(aspect.ratio = 1)
+#+ theme(legend.position = "none")
+#hc <- hclust(dist(as.matrix((t(exp)))), "ward.D2")
+#  theme(aspect.ratio = 1) + theme(legend.position = "none")
+dev.off()
+
+
+##-- REMOVE GENE SYMBOLS DUPLICATES
+dim(dge)
+#options(digits=3)
+dge$samples
+
+#delete duplicate genesymbols
+o <- order(rowSums(dge$counts))
+dge <- dge[o,]
+d <- duplicated(dge$genes$Symbol)
+dge <- dge[!d,]
+dim(dge)
+
+##-- REMOVE ROWS with NO GENE_SYMBOLS
+## ----dropNAsymbols-------------------------------------------------------
+dge <- dge[!is.na(dge$genes), ]
+dim(dge)
+
+rownames(dge) <- dge$genes$Symbol
+
+
+##-- FILTER BASED ON GENE COUNT PER SAMPLE
+## ----keep-----Two options, choose one------------------------------------
+
+##option 1
+#keep <- rowSums(cpm(dge) > 0.5) >= 2
+#countsPerMillion <- cpm(dge)
+#summary(countsPerMillion)
+#countCheck <- countsPerMillion > 1
+#head(countCheck)
+#keep <- which(rowSums(countCheck) >= 2)
+#dge <- dge[keep,]
+#summary(cpm(dge)) #compare this to the original summary
+#xs4321  `1654`
+
+#option 2
+keep <-
+  filterByExpr(dge) #keeps rows that have worthwhile counts in a minumum number
+
+table(keep)
+
+## ----filter--------------------------------------------------------------
+dim(dge)
+dge <- dge[keep, , keep.lib.sizes = FALSE]
+dim(dge)
+
+##-- LOG_CPM_MATRIX
+## ----norm----------------------------------------------------------------
+dge <- calcNormFactors(dge,method="TMM")
+dge$samples
+
+# # Obtain CPMs
+myCPM <- cpm(dge$counts, log = T)
+# # Have a look at the output
+head(myCPM)
+write.csv(myCPM,
+          file = file.path(tabdir, "Table_logCPM_matrix.csv"),
+          quote = TRUE, row.names = T
+)
+
+cnt <- cnt + 1
+png(file.path(
+  figdir,
+  paste0(figcount[cnt], "barplot_libray_size_countfilt2.png")
+),width = 10, height = 8,units = 'in', res = 300)
+col.cell <-
+  c("#a6611a",
+    "#dfc27d",
+    "#80cdc1",
+    "#018571")[anno$Group]
+barplot(
+  dge$samples$lib.size,
+  names = anno$Condition,
+  las = 2,
+  col = col.cell
+) +
+  # Add a title to the plot
+  title("Barplot of library sizes")
+dev.off()
+
+
+
+v <- voom(dge, design1  , plot = FALSE)
+
+# PCA
+##################################################################
+exp = v$E
+x = prcomp(as.matrix(t(exp)))
+perc_pc <- x$sdev ^ 2 / sum(x$sdev ^ 2) * 100
+
+pca.ap = x$x
+pca.ap = data.frame(pca.ap)
+pca.ap[, "Group"] <- anno$Group
+pca.ap[, "RepID"] <- anno$RepID
+
+i = 1
+j = 2
+cnt <- cnt + 1
+png(file = file.path(
+  figdir,
+  paste0(figcount[cnt], "PCA_sample_group.png")
+),width = 10, height = 8,units = 'in', res = 300)
+
+ggplot(pca.ap, aes(
+  x = eval(parse(text = paste0("PC", i))),
+  y = eval(parse(text = paste0("PC", j))),
+  colour = Group,
+  #   shape = RepID
+)) +
+  geom_point(stroke = 1.5,
+             size = 3,
+             alpha = 1) +
+  scale_color_manual(values = c("#a6611a",
+                                "#dfc27d",
+                                "#80cdc1",
+                                "#018571"
+  )) +
+  
+  # scale_color_manual(values = c("dodgerblue3","seagreen2","firebrick3","#E69F00", "darkmagenta", "#ea10c9")) +
+  scale_shape_manual(values = c(1,2,3,4)) +
+  geom_text(
+    aes(label = RepID),
+    size = 4,
+    check_overlap = FALSE,
+    nudge_y = 3
+  ) +
+  xlab(paste0("PC", i, ": ", round(perc_pc[[i]], 2), "%")) +
+  ylab(paste0("PC", j, ": ", round(perc_pc[[j]], 2), "%")) +
+  #theme_bw(base_size = 15)  +
+  theme(axis.text.x = element_text(color = "grey20", size = 20, angle = 90, hjust = .5, vjust = .5, face = "plain"),
+        axis.text.y = element_text(color = "grey20", size = 20, angle = 0, hjust = 1, vjust = 0, face = "plain"),
+        axis.title.x = element_text(color = "grey20", size = 20, angle = 0, hjust = .5, vjust = 0, face = "plain"),
+        axis.title.y = element_text(color = "grey20", size = 20, angle = 90, hjust = .5, vjust = .5, face = "plain")) +
+  # Change the appearance and the orientation angle
+  # of axis tick labels
+  theme(axis.text.x = element_text(face="plain", color="black", 
+                                   size=14, angle=0),
+        axis.text.y = element_text(face="plain", color="black", 
+                                   size=14, angle=90)) +
+  
+  
+  
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(colour = "black", fill = NA),
+    panel.background = element_blank(),
+    axis.line = element_line(colour = "black"),
+    axis.line.x= element_line(colour = "black"),
+    axis.line.y.left = element_line(colour = "black")
+  ) + theme(aspect.ratio = 1)
+#+ theme(legend.position = "none")
+#hc <- hclust(dist(as.matrix((t(exp)))), "ward.D2")
+
+dev.off()
+
+
+
+
+### MDS plot
+
+
+mds <- plotMDS(dge)
+toplot <-
+  data.frame(Dim1 = mds$x,
+             Dim2 = mds$y,
+             RepID = anno$RepID,
+             Group = anno$Group)
+cnt <- cnt + 1
+png(file = file.path(
+  figdir,
+  paste0(figcount[cnt], "MDS_sample_group.png")
+),width = 10, height = 8,units = 'in', res = 300)
+
+ggplot(toplot, aes(Dim1, Dim2, colour = Group)) +
+  geom_text(
+    aes(label = RepID),
+    size = 4,
+    check_overlap = FALSE,
+    nudge_y = 0.05
+  ) +
+  geom_point(stroke = 1.5,
+             size = 3,
+             alpha = 1) +
+  #  title("MDS plot") +
+  xlab("Leading logFC dim 1") +
+  ylab("Leading logFC dim 2") +
+  scale_color_manual(values = c("#a6611a",
+                                "#dfc27d",
+                                "#80cdc1",
+                                "#018571"
+  ))     +
+  #theme_bw(base_size = 15)  +
+  theme(axis.text.x = element_text(color = "grey20", size = 20, angle = 90, hjust = .5, vjust = .5, face = "plain"),
+        axis.text.y = element_text(color = "grey20", size = 20, angle = 0, hjust = 1, vjust = 0, face = "plain"),
+        axis.title.x = element_text(color = "grey20", size = 20, angle = 0, hjust = .5, vjust = 0, face = "plain"),
+        axis.title.y = element_text(color = "grey20", size = 20, angle = 90, hjust = .5, vjust = .5, face = "plain")) +
+  # Change the appearance and the orientation angle
+  # of axis tick labels
+  theme(axis.text.x = element_text(face="plain", color="black", 
+                                   size=14, angle=0),
+        axis.text.y = element_text(face="plain", color="black", 
+                                   size=14, angle=90)) +
+  
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(colour = "black", fill = NA),
+    panel.background = element_blank(),
+    axis.line = element_line(colour = "black"),
+    axis.line.x= element_line(colour = "black"),
+    axis.line.y.left = element_line(colour = "black")
+  ) + theme(aspect.ratio = 1)
+#+ theme(legend.position = "none")
+#hc <- hclust(dist(as.matrix((t(exp)))), "ward.D2")
+#  theme(aspect.ratio = 1) + theme(legend.position = "none")
+dev.off()
+
+
+
+
+```
+
+### PCA sample clustering
+
+
+(This is done check similarities and dissimilarities between samples in an unsupervised manner)
+
+
+```{r fig5, fig.cap="PCA based unsupervised clustering of samples"}
+knitr::include_graphics("Result_Analysis_Petunia/output_FC_2.0_FDR_0.05/Figure_05_PCA_sample_group.png")
+```
+<br>
+
+
+## Results {#results1}
+<br>
+**Developmental stages:**
+
+ a)  PhyI   =  1
+
+ b)  PhyII  = 2
+
+ c)  PhyIII = 2.5
+
+ d)  PhyIV  = 4
+ 
+ <br>
+ 
+###  Differentially expressed genes summary
+
+Statistical significant difference in gene expression based on
+
+  + FOLD CHANGE cut-off > 2
+  + FDR(adj.p.value) cut-off < 0.05 
+
+```{r}
+
+
+# DEG
+dge <- estimateDisp(dge, design1)
+cnt <- cnt + 1
+png(file = file.path(
+  figdir,
+  paste0(figcount[cnt], "Dispersion_estimate.png")
+),width = 10, height = 8,units = 'in', res = 300)
+plotBCV(dge, cex = 0.5,main="Dispersion Estimate")
+dev.off()
+
+v <- voom(dge, design1, plot = FALSE)
+fit <-lmFit(v,design1)
+plotSA(fit, main="voom: Mean-variance trend")
+
+vfit<- contrasts.fit(fit,contrasts = contr.matrix)
+efit <- eBayes(vfit)
+cnt <- cnt + 1
+png(file = file.path(
+  figdir,
+  paste0(figcount[cnt], "Mean-variance_trend.png")
+),width = 10, height = 8,units = 'in', res = 300)
+plotSA(efit, main="Final model: Mean-variance trend")
+dev.off()
+
+
+
+
+# fit <-glmFit(dge,design1)
+# 
+# lrt <- glmLRT(fit,coef = 1)
+# topTags(lrt)
+# print(summary(decideTests(lrt, p.value = aPVALcutoff, lfc = log2FCcutval)))
+# lrt <- glmLRT(fit,coef = 2)
+# topTags(lrt)
+# print(summary(decideTests(lrt, p.value = aPVALcutoff, lfc = log2FCcutval)))
+# lrt <- glmLRT(fit,coef = 3)
+# topTags(lrt)
+# print(summary(decideTests(lrt, p.value = aPVALcutoff, lfc = log2FCcutval)))
+
+summary.table<- as.data.frame.matrix(summary(decideTests(efit, p.value = aPVALcutoff, lfc = log2FCcutval)))
+write.table(summary.table,file.path(figdir,"Table_summary_DEG_stat.tsv"))
+
+newdf<- rbind(summary.table, data.table(PhyII_vsI=paste0("*FC >= ",FCcutoff,"*FDR >= ",aPVALcutoff)),fill=T)
+#rownames(newdf)<- NULL
+
+
+dfrownames <- as.data.frame(c(row.names(summary.table),""))
+colnames(dfrownames)<- c("Gene Type")
+df.combo <- cbind(dfrownames,newdf)
+
+cnt <- cnt + 1
+png(file = file.path(
+  figdir,
+  paste0(figcount[cnt], "Table_summary_DEG_stat.png")
+),width = 10, height = 8,units = 'in', res = 300)
+grid.table(df.combo)
+dev.off()
+
+###Res1####
+#create contrast list
+contrast_list <- c("PhyII_vsI", "PhyIII_vsI","PhyIV_vsI","PhyIII_vsII","PhyIV_vsII","PhyIV_vsIII")
+my_contrast_list <- list()
+#DEG RAW for  all 6 comparison
+
+for(y in 1:6){ #Loop through the  six comparisons
+  
+  # RES1 
+  res1<-
+    data.frame(topTable(
+      efit,
+      coef = contrast_list[y],
+      adjust = "BH",
+      n = nrow(dge$counts)
+      # sort.by = "none"
+    ))[, c("Symbol", "logFC", "P.Value", "adj.P.Val")]
+  
+  
+  colnames(res1) <- paste( colnames(res1),contrast_list[y], sep = ".")
+  
+  write.csv(
+    res1,
+    file = file.path(tabdir, paste("Table",contrast_list[y],"_DEG_TotalValidGenes_in_Genome.csv",sep="_")),
+    quote = TRUE, row.names = F
+  )
+  
+  
+  write.table(
+    rownames(res1),
+    file = file.path(tabdir, "genenames_DEG_TotalValidGenes_in_Genome_GO_bg.txt"),
+    col.names = F,
+    row.names = F,
+    quote = FALSE,
+    sep = "\t"
+  )
+  my_contrast_list[[y]] <- res1
+}
+###Res2####
+# RES2
+
+for(y in 1:6){ #Loop through the 
+  
+  res2<-
+    data.frame(topTable(
+      efit,
+      coef = contrast_list[y],
+      adjust = "BH",
+      n = nrow(dge$counts) , p.value = aPVALcutoff, lfc = log2FCcutval
+      # sort.by = "none"
+    ))[, c("Symbol", "logFC", "P.Value", "adj.P.Val")]
+  
+  colnames(res2) <- paste( colnames(res2), contrast_list[y],sep = ".")
+  
+  # TOTAL DEG 
+  write.csv(
+    res2,
+    file = file.path(tabdir, paste("Table_deg_",contrast_list[y],".csv",sep = "")),
+    quote = TRUE, row.names = F
+  )
+  
+  write.table(
+    rownames(res2),
+    file = file.path(tabdir, paste("genenames4_GO_deg_",contrast_list[y],".txt",sep = "")),
+    col.names = F,
+    row.names = F,
+    quote = FALSE,
+    sep = "\t"
+  )
+  
+  # UP REG
+  
+  write.table(
+    res2[which(res2[2]> log2FCcutval &
+                 res2[4]< aPVALcutoff), ],
+    file = file.path(tabdir, paste("Table_upreg_",contrast_list[y],".txt",sep = "")),
+    col.names = F,
+    row.names = F,
+    quote = FALSE,
+    sep = "\t"
+  )
+  
+  
+  write.table(
+    rownames(res2[which(res2[2]> log2FCcutval &
+                          res2[4]< aPVALcutoff), ]),
+    file = file.path(tabdir, paste("genename4_GO_upreg_",contrast_list[y],".txt",sep = "")),
+    col.names = F,
+    row.names = F,
+    quote = FALSE,
+    sep = "\t"
+  )
+  
+  #DOWN REG
+  
+  write.table(
+    res2[which(res2[2]< (-log2FCcutval) &
+                 res2[4]< aPVALcutoff), ],
+    file = file.path(tabdir, paste("Table_downreg_",contrast_list[y],".txt",sep = "")),
+    col.names = F,
+    row.names = F,
+    quote = FALSE,
+    sep = "\t"
+  )
+  write.table(
+    rownames(res2[which(res2[2]< (-log2FCcutval) &
+                          res2[4]< aPVALcutoff), ]),
+    file = file.path(tabdir, paste("genename4_GO_downreg_",contrast_list[y],".txt",sep = "")),
+    col.names = F,
+    row.names = F,
+    quote = FALSE,
+    sep = "\t"
+  )
+  
+}
+
+```
+
+
+```{r table-first-report, eval=F,echo=FALSE}
+df<- read.table("Result_Analysis_Petunia/output_FC_2.0_FDR_0.05/Table_summary_DEG_stat.tsv", header = T,sep = " ")
+
+
+datatable(df,caption = "Table: Petunia RNAseq - Summary of DEG analysis", rownames = T)	
+
+
+```
+
+
+
+### Volcano plot
+
+
+Comparison  of all 6 contrasts
+
+```{r}
+
+#####volcano plot####
+volcano_panel <- list()
+for ( z in 1:6){
+  # fig1
+  # z =2
+  gene_list = my_contrast_list[[z]]
+  #gene_list[is.na(gene_list)] <- 1
+  gene_list$color_flag <-
+    as.factor(
+      ifelse(
+        gene_list[2]< -log2FCcutval  &
+          gene_list[4]< aPVALcutoff,
+        "Downreg",
+        ifelse(
+          gene_list[2]> log2FCcutval  &
+            gene_list[4]< aPVALcutoff,
+          "Upreg" ,
+          "Non-DE"
+        )
+      )
+    )
+  
+  colnames(gene_list)<- c("Symbol","logFC","P.Value","adj.P.Val","color_flag" )
+  gene_list$gene_names <- gene_list$Symbol
+  #gene_list[!gene_list$Gene_Symbol %in% rownames(deg[1:30,]), "gene_names"] <- ""
+  
+  #convertlofFC to FC
+  
+  
+  volcano_panel[[z]] <-  ggplot(data = gene_list,
+                                aes(
+                                  x = logFC,
+                                  y = -log10(adj.P.Val),
+                                  colour = color_flag
+                                )) +
+    #, label = gene_names
+    geom_point(size = 0.75) +
+    # geom_text(size=2, color="black", hjust=0, vjust=3, aes(logFC,-log10(P.Value),label=gene_names)) +
+    coord_cartesian(xlim = c(-10, 10), ylim = c(0, 9)) +
+    labs(title=paste(contrast_list[z]), x ="Fold-change (log2)", y ="P-value (-log10)") +
+    xlab("Fold-change (log2)") +
+    ylab("P-value (-log10)") +
+    scale_colour_manual(values = c("dodgerblue4", "gray", "firebrick4")) +
+    theme_bw() +
+    theme(
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      panel.border = element_rect(colour = "black", fill = NA),
+      panel.background = element_blank(),
+      axis.line = element_line(colour = "black")
+    ) +
+    theme(aspect.ratio = 1) + theme(legend.title = element_blank())
+  #  geom_text_repel(size = 2.5, color = "black")
+  
+}
+
+##-----------------------------------------------------
+m1 <- grid.arrange(grobs = volcano_panel, ncol = 2) ## display plot
+ggsave(m1, file = file.path( figdir,paste0(figcount[cnt+1],"volcanoplot_combined.png")))
+knitr::include_graphics(file.path( figdir,paste0(figcount[cnt+1],"volcanoplot_combined.png")))
+```
+<br>
+
+### Heatmap 
+
+<br>
+
+```{r}
+##### heatmap####
+##################################################################
+exp <- v$E
+colnames(exp) <- paste0(colnames(exp), "_", anno$Condition)
+
+
+cnt <- cnt + 1
+for (p in 1:6) {
+  deg.genes <-
+    read.table(file.path(tabdir, paste0("genenames4_GO_deg_", contrast_list[p], ".txt")), header = F)
+  print(nrow(deg.genes))
+  deg <-
+    exp[rownames(exp) %in% deg.genes[, 1], grep("_", colnames(exp))]
+  
+  deg <- t(scale(t(as.matrix(deg))))
+  mtscaled <- deg
+  dim(mtscaled)
+  hc = hclust((dist(mtscaled)), method = "ward.D")
+  
+  col = colorRampPalette(c("blue", "white", "red"))
+  png(file.path(figdir, paste0(figcount[cnt], "heatmap_avgExpr_", contrast_list[p], ".png")),width = 10, height = 8,units = 'in', res = 300)
+  hm <-
+    heatmap.2(
+      mtscaled,
+      labCol = anno$IDs ,
+      symm = F,
+      scale = 'none',
+      main = paste0("Heatmap: ", contrast_list[p]),
+      ylab = paste0("FC > ", FCcutoff, " ;  adj.Pval <  ", aPVALcutoff),
+      cexRow = 0.75,
+      cexCol = 0.75,
+      trace = "none",
+      dendrogram = 'column',
+      Rowv = as.dendrogram(hc),
+      #Colv = T,
+      col = col(24),
+      symbreaks = T,
+      srtCol = 45,
+      labRow = FALSE
+    )
+  dev.off()
+}
+
+
+```
+
+#### Average expression heatmap {-}
+
+
+a)  PhyII_vsI
+
+```{r fig8, fig.cap="Heatmap"}
+knitr::include_graphics("Result_Analysis_Petunia/output_FC_2.0_FDR_0.05/Figure_10_heatmap_avgExpr_PhyII_vsI.png")
+```
+<br>
+b)  PhyIII_vsI
+
+```{r fig9, fig.cap="Heatmap"}
+knitr::include_graphics("Result_Analysis_Petunia/output_FC_2.0_FDR_0.05/Figure_10_heatmap_avgExpr_PhyIII_vsI.png")
+```
+<br>
+c)  PhyIV_vsI
+
+```{r fig10, fig.cap="Heatmap"}
+knitr::include_graphics("Result_Analysis_Petunia/output_FC_2.0_FDR_0.05/Figure_10_heatmap_avgExpr_PhyIV_vsI.png")
+```
+<br>
+d)  PhyIII_vsII
+
+```{r fig11, fig.cap="Heatmap"}
+knitr::include_graphics("Result_Analysis_Petunia/output_FC_2.0_FDR_0.05/Figure_10_heatmap_avgExpr_PhyIII_vsII.png")
+```
+<br>
+e)  PhyIV_vsII
+
+```{r fig12, fig.cap="Heatmap"}
+knitr::include_graphics("Result_Analysis_Petunia/output_FC_2.0_FDR_0.05/Figure_10_heatmap_avgExpr_PhyIV_vsII.png")
+```
+<br>
+f)  PhyIV_vsIII
+
+```{r fig13, fig.cap="Heatmap"}
+knitr::include_graphics("Result_Analysis_Petunia/output_FC_2.0_FDR_0.05/Figure_10_heatmap_avgExpr_PhyIV_vsIII.png")
+```
+<br>
+
+
+<br>
+
+#### log CPM based heatmap {-}
+
+
+```{r}
+#####logCPMheatmap####
+
+lcpm <- cpm(dge, log = T)
+cnt <- cnt + 1
+newcnt2 <- cnt
+
+for (i in c(1:6)) {
+  Cntrl_vs_Treatment <- topTreat(efit, coef = i, n = Inf, sort.by = "P")
+  Cntrl_vs_Treatment.topgenes <- rownames(Cntrl_vs_Treatment)[1:25]
+  var1 <- which(row.names(v$genes) %in% Cntrl_vs_Treatment.topgenes)
+  #  mycol <- colorpanel(1000,"blue","white","red")
+  col = colorRampPalette(c("blue", "white", "red"))
+  deg <- lcpm[var1, ]
+  deg <- t(scale(t(as.matrix(deg))))
+  mtscaled <- deg
+  dim(mtscaled)
+  hc = hclust((dist(mtscaled)), method = "ward.D")
+  
+  #rownames(mtscaled) <- mapIds(org.Mm.eg.db, rownames(dge), column="ENTREZID", keytype="ENSEMBL") 
+  png(file.path(
+    figdir,
+    paste0(figcount[newcnt2], "heatmap_top25_logCPM", colnames(efit$contrasts)[i], ".png")
+  ),width = 10, height = 10,units = 'in', res = 300)
+  heatmap.2(
+    mtscaled,
+    labCol = anno$IDs ,
+    symm = F,
+    main = paste0("Heatmap: ", colnames(efit$contrasts)[i]," FC > ", FCcutoff, " ;  adj.Pval <  ", aPVALcutoff),
+    xlab = "logCPM HeatMap",
+    #  title  = ,
+    scale = 'none',
+    cexRow = 0.75,
+    cexCol = 0.75,
+    trace = "none",
+    dendrogram = 'none',
+    Rowv = as.dendrogram(hc),
+    Colv = F,
+    col = col(24),
+    symbreaks = T,
+    srtCol = 45,
+    margins = c(8, 10)
+  )
+  dev.off()
+}
+
+```
+a)  PhyII_vsI
+
+```{r fig14, fig.cap="Heatmap"}
+knitr::include_graphics("Result_Analysis_Petunia/output_FC_2.0_FDR_0.05/Figure_11_heatmap_top25_logCPMPhyII_vsI.png")
+```
+<br>
+b)  PhyIII_vsI
+
+```{r fig15, fig.cap="Heatmap"}
+knitr::include_graphics("Result_Analysis_Petunia/output_FC_2.0_FDR_0.05/Figure_11_heatmap_top25_logCPMPhyIII_vsI.png")
+```
+<br>
+c)  PhyIV_vsI
+
+```{r fig16, fig.cap="Heatmap"}
+knitr::include_graphics("Result_Analysis_Petunia/output_FC_2.0_FDR_0.05/Figure_11_heatmap_top25_logCPMPhyIV_vsI.png")
+```
+<br>
+d)  PhyIII_vsII
+
+```{r fig17, fig.cap="Heatmap"}
+knitr::include_graphics("Result_Analysis_Petunia/output_FC_2.0_FDR_0.05/Figure_11_heatmap_top25_logCPMPhyIII_vsII.png")
+```
+<br>
+e)  PhyIV_vsII
+
+```{r fig18, fig.cap="Heatmap"}
+knitr::include_graphics("Result_Analysis_Petunia/output_FC_2.0_FDR_0.05/Figure_11_heatmap_top25_logCPMPhyIV_vsII.png")
+```
+<br>
+f)  PhyIV_vsIII
+
+```{r fig19, fig.cap="Heatmap"}
+knitr::include_graphics("Result_Analysis_Petunia/output_FC_2.0_FDR_0.05/Figure_11_heatmap_top25_logCPMPhyIV_vsIII.png")
+```
+<br>
+
+
+### GO enrichment analysis
+
+a)  PhyII_vsI, PhyIII_vsI and PhyIV_vsI
+
+```{r fig20, fig.cap="GO enrichment: Comparison between 3  group"}
+
+##-- using https://biit.cs.ut.ee/gprofiler/ upload GENE_SYMBOLS and download the output as a CSV file
+
+outdir <- c("/Users/skailasam/Documents/Petunia_RNAseq_report/Sample_RNAseq_report/Result_Analysis_Petunia/output_FC_2.0_FDR_0.05/Tables/GO_and_KEGG_analysis/")
+dir.create(outdir)
+#setwd(inpdir)
+GOTermT<- read.csv(  file = c("Table_GO_gprofile_edit.csv"),header = T )
+
+listcutoff <- c(20)
+
+#GOTermT<- (GOTermT[- grep("GOTerm:00000", GOTermT$term_id),])
+
+GOTermT$GeneRatio__PhyIII_vsII<- GOTermT$intersection_size__PhyIII_vsII/GOTermT$query_size__PhyIII_vsII
+GOTermT$GeneRatio__PhyIII_vsI<- GOTermT$intersection_size__PhyIII_vsI/GOTermT$query_size__PhyIII_vsI
+GOTermT$GeneRatio__PhyII_vsI<- GOTermT$intersection_size__PhyII_vsI/GOTermT$query_size__PhyII_vsI
+GOTermT$GeneRatio__PhyIV_vsIII<- GOTermT$intersection_size__PhyIV_vsIII/GOTermT$query_size__PhyIV_vsIII
+GOTermT$GeneRatio__PhyIV_vsII<- GOTermT$intersection_size__PhyIV_vsII/GOTermT$query_size__PhyIV_vsII
+GOTermT$GeneRatio__PhyIV_vsI<- GOTermT$intersection_size__PhyIV_vsI/GOTermT$query_size__PhyIV_vsI
+
+
+#PhyIII_vsII
+df<- GOTermT[which(GOTermT$intersection_size__PhyIII_vsII>0),]
+#df<- GOTermT
+df.ordered<- df[order(df$adjusted_p_value__PhyIII_vsII),]
+df.ordered <- df.ordered [c(1,2,3,4,5, 7,8,9,30)]
+df.newPhyIII_vsII <- df.ordered[c(1:listcutoff),]
+df.newPhyIII_vsII$type<- c("PhyIII_vsII")
+colnames(df.newPhyIII_vsII) <- sub("_PhyIII_vsII", "", colnames(df.newPhyIII_vsII))
+
+
+#PhyIII_vsI
+df<- GOTermT[which(GOTermT$intersection_size__PhyIII_vsI>0),]
+#df<- GOTermT
+df.ordered<- df[order(df$adjusted_p_value__PhyIII_vsI),]
+df.ordered <- df.ordered [c(1,2,3,4,5,  11,12,13,31)]
+df.newPhyIII_vsI <- df.ordered[c(1:listcutoff),]
+df.newPhyIII_vsI$type<- c("PhyIII_vsI")
+colnames(df.newPhyIII_vsI) <- sub("_PhyIII_vsI", "", colnames(df.newPhyIII_vsI))
+
+
+#PhyII_vsI
+df<- GOTermT[which(GOTermT$intersection_size__PhyII_vsI>0),]
+#df<- GOTermT
+df.ordered<- df[order(df$adjusted_p_value__PhyII_vsI),]
+df.ordered <- df.ordered [c(1,2,3,4,5,  15,16,17, 32)]
+df.newPhyII_vsI <- df.ordered[c(1:listcutoff),]
+df.newPhyII_vsI$type<- c("PhyII_vsI")
+colnames(df.newPhyII_vsI) <- sub("_PhyII_vsI", "", colnames(df.newPhyII_vsI))
+
+#PhyIV_vsIII
+df<- GOTermT[which(GOTermT$intersection_size__PhyIV_vsIII>0),]
+#df<- GOTermT
+df.ordered<- df[order(df$adjusted_p_value__PhyIV_vsIII),]
+df.ordered <- df.ordered [c(1,2,3,4,5,  19,20,21, 33)]
+df.newPhyIV_vsIII <- df.ordered[c(1:listcutoff),]
+df.newPhyIV_vsIII$type<- c("PhyIV_vsIII")
+colnames(df.newPhyIV_vsIII) <- sub("_PhyIV_vsIII", "", colnames(df.newPhyIV_vsIII))
+
+#PhyIV_vsII
+df<- GOTermT[which(GOTermT$intersection_size__PhyIV_vsII>0),]
+#df<- GOTermT
+df.ordered<- df[order(df$adjusted_p_value__PhyIV_vsII),]
+df.ordered <- df.ordered [c(1,2,3,4,5,  23,24,25, 34)]
+df.newPhyIV_vsII <- df.ordered[c(1:listcutoff),]
+df.newPhyIV_vsII$type<- c("PhyIV_vsII")
+colnames(df.newPhyIV_vsII) <- sub("_PhyIV_vsII", "", colnames(df.newPhyIV_vsII))
+
+#PhyIV_vsI
+df<- GOTermT[which(GOTermT$intersection_size__PhyIV_vsI>0),]
+#df<- GOTermT
+df.ordered<- df[order(df$adjusted_p_value__PhyIV_vsI),]
+df.ordered <- df.ordered [c(1,2,3,4,5,  27,28,29, 35)]
+df.newPhyIV_vsI <- df.ordered[c(1:listcutoff),]
+df.newPhyIV_vsI$type<- c("PhyIV_vsI")
+colnames(df.newPhyIV_vsI) <- sub("_PhyIV_vsI", "", colnames(df.newPhyIV_vsI))
+
+
+df.combo <- rbind(df.newPhyII_vsI,df.newPhyIII_vsI,df.newPhyIV_vsI) #,df.newPhyIII_vsII,df.newPhyIV_vsII,df.newPhyIV_vsIII)
+df.combo <- df.combo[with(df.combo, order(source, term_name)),]
+unique(df.combo$term_name)
+df.combo$Team3<- factor(df.combo$term_name, 
+                        levels = c("cell cycle", 
+                                   "cell cycle process", 
+                                   "cell division", 
+                                   "cell wall organization or biogenesis", 
+                                   "cellular metabolic process", 
+                                   "cellular process", 
+                                   "cellular response to chemical stimulus", 
+                                   "DNA replication", 
+                                   "DNA-dependent DNA replication", 
+                                   "lipid metabolic process", 
+                                   "meiotic cell cycle", 
+                                   "meiotic cell cycle process", 
+                                   "meiotic nuclear division", 
+                                   "metabolic process", 
+                                   "mitotic cell cycle", 
+                                   "mitotic cell cycle process", 
+                                   "nuclear division", 
+                                   "organelle fission", 
+                                   "organic substance metabolic process", 
+                                   "phenylpropanoid biosynthetic process", 
+                                   "phenylpropanoid metabolic process", 
+                                   "primary metabolic process", 
+                                   "regulation of cell cycle process", 
+                                   "response to abiotic stimulus", 
+                                   "response to acid chemical", 
+                                   "response to chemical", 
+                                   "response to endogenous stimulus", 
+                                   "response to hormone", 
+                                   "response to organic substance", 
+                                   "response to oxygen-containing compound", 
+                                   "response to stimulus", 
+                                   "response to stress", 
+                                   "cell periphery", 
+                                   "cell wall", 
+                                   "cellular anatomical entity", 
+                                   "chromosome", 
+                                   "external encapsulating structure", 
+                                   "kinesin complex", 
+                                   "membrane", 
+                                   "microtubule", 
+                                   "microtubule cytoskeleton", 
+                                   "nuclear chromosome", 
+                                   "plant-type cell wall", 
+                                   "plasma membrane", 
+                                   "symplast", 
+                                   "catalytic activity"
+                        ))
+
+df.combo<- na.omit(df.combo)
+df.combo$adj.Pval<- df.combo$adjusted_p_value_
+
+p1 <- ggplot(df.combo, aes(x = df.combo$Team3, y = -log10(adj.Pval),  fill = (df.combo$source))) +
+  geom_bar(position = position_dodge(width = 0.5), stat = "identity", group = (df.combo$source)) + coord_flip()+
+  xlab(NULL) + #ylab(eNULL)
+  scale_colour_brewer(palette = "Dark2") +
+  labs(title="GO enrichment Count ", fill = "GO Class ")  +
+  theme_bw() +  facet_grid(.~type) +   geom_text(data=df.combo, aes(label=paste0("" ,df.combo$intersection_size_),
+                                                                    y=df.combo$adj.Pval+10), size=3)
+
+ggsave(p1, file = file.path(outdir,"Figure_11_GOTerm_enrichment_outputop20_part1.pdf"))
+ggsave(p1, file = file.path(outdir,"Figure_11_GOTerm_enrichment_outputop20_part1.png"))
+ggsave(p1, file = file.path(outdir,"Figure_11_GOTerm_enrichment_outputop20_part1.jpg"))
+
+knitr::include_graphics(file.path(outdir,"Figure_11_GOTerm_enrichment_outputop20_part1.png"))
+```
+<br>
+b)  PhyIII_vsII, PhyIV_vsII and PhyIV_vsIII
+
+```{r fig21, fig.cap="GO enrichment: Comparison between 3 group"}
+#part2
+
+df.combo <- rbind(df.newPhyIII_vsII,df.newPhyIV_vsII,df.newPhyIV_vsIII)
+df.combo <- df.combo[with(df.combo, order(source, term_name)),]
+unique(df.combo$term_name)
+df.combo$Team3<- factor(df.combo$term_name, 
+                        levels = c("cell cycle", 
+                                   "cell cycle process", 
+                                   "cell division", 
+                                   "cell wall organization or biogenesis", 
+                                   "cellular metabolic process", 
+                                   "cellular process", 
+                                   "cellular response to chemical stimulus", 
+                                   "DNA replication", 
+                                   "DNA-dependent DNA replication", 
+                                   "lipid metabolic process", 
+                                   "meiotic cell cycle", 
+                                   "meiotic cell cycle process", 
+                                   "meiotic nuclear division", 
+                                   "metabolic process", 
+                                   "mitotic cell cycle", 
+                                   "mitotic cell cycle process", 
+                                   "nuclear division", 
+                                   "organelle fission", 
+                                   "organic substance metabolic process", 
+                                   "phenylpropanoid biosynthetic process", 
+                                   "phenylpropanoid metabolic process", 
+                                   "primary metabolic process", 
+                                   "regulation of cell cycle process", 
+                                   "response to abiotic stimulus", 
+                                   "response to acid chemical", 
+                                   "response to chemical", 
+                                   "response to endogenous stimulus", 
+                                   "response to hormone", 
+                                   "response to organic substance", 
+                                   "response to oxygen-containing compound", 
+                                   "response to stimulus", 
+                                   "response to stress", 
+                                   "cell periphery", 
+                                   "cell wall", 
+                                   "cellular anatomical entity", 
+                                   "chromosome", 
+                                   "external encapsulating structure", 
+                                   "kinesin complex", 
+                                   "membrane", 
+                                   "microtubule", 
+                                   "microtubule cytoskeleton", 
+                                   "nuclear chromosome", 
+                                   "plant-type cell wall", 
+                                   "plasma membrane", 
+                                   "symplast", 
+                                   "catalytic activity"
+                        ))
+
+df.combo<- na.omit(df.combo)
+df.combo$adj.Pval<- df.combo$adjusted_p_value_
+
+
+p2 <- ggplot(df.combo, aes(x = df.combo$Team3, y = -log10(adj.Pval),  fill = (df.combo$source))) +
+  geom_bar(position = position_dodge(width = 0.5), stat = "identity", group = (df.combo$source)) + coord_flip()+
+  xlab(NULL) + #ylab(eNULL)
+  scale_colour_brewer(palette = "Dark2") +
+  labs(title="GO enrichment Count ", fill = "GO Class ")  +
+  theme_bw() +  facet_grid(.~type) +   geom_text(data=df.combo, aes(label=paste0("" ,df.combo$intersection_size_),
+                                                                    y=df.combo$adj.Pval+10), size=3)
+
+
+ggsave(p2, file = file.path(outdir,"Figure_11_GOTerm_enrichment_outputop20_part2.pdf"))
+ggsave(p2, file = file.path(outdir,"Figure_11_GOTerm_enrichment_outputop20_part2.png"))
+ggsave(p2, file = file.path(outdir,"Figure_11_GOTerm_enrichment_outputop20_part2.jpg"))
+
+knitr::include_graphics("Result_Analysis_Petunia/output_FC_2.0_FDR_0.05/Tables/GO_and_KEGG_analysis/Figure_11_GOTerm_enrichment_outputop20_part2.png")
+```
+<br>
+
+### KEGG pathway  analysis
+
+a)  PhyII_vsI, PhyIII_vsI and PhyIV_vsI
+
+```{r fig22, fig.cap="KEGG pathway analysis: Comparison between 3  group"}
+library(tidyverse)
+keggT<- read.csv(  file = file.path(outdir,paste0("Table_KEGG_gprofile_edit.csv")),header = T )
+
+
+listcutoff <- c(17)
+
+
+#keggT$GeneRatio_Total<- keggT$intersection_size__Total/keggT$query_size__Total
+
+keggT$GeneRatio_PhyIII_vsII<- keggT$intersection_size__PhyIII_vsII/keggT$query_size__PhyIII_vsII
+keggT$GeneRatio_PhyIII_vsI<- keggT$intersection_size__PhyIII_vsI/keggT$query_size__PhyIII_vsI
+keggT$GeneRatio_PhyII_vsI<- keggT$intersection_size__PhyII_vsI/keggT$query_size__PhyII_vsI
+keggT$GeneRatio_PhyIV_vsIII<- keggT$intersection_size__PhyIV_vsIII/keggT$query_size__PhyIV_vsIII
+keggT$GeneRatio_PhyIV_vsII<- keggT$intersection_size__PhyIV_vsII/keggT$query_size__PhyIV_vsII
+keggT$GeneRatio_PhyIV_vsI<- keggT$intersection_size__PhyIV_vsI/keggT$query_size__PhyIV_vsI
+# #Total
+# df<- keggT[which(keggT$intersection_size__Total>0),]
+# #df<- keggT
+# df.ordered<- df[order(df$adjusted_p_value__Total),]
+# df.ordered <- df.ordered [c(1,2,3,4,5, 7,8,9, 22)]
+# df.Total <- df.ordered[c(1:listcutoff),]
+# df.Total$type<- c("Total")
+# colnames(df.Total) <- sub("_Total", "", colnames(df.Total))
+
+
+
+#PhyIII_vsII
+df<- keggT[which(keggT$intersection_size__PhyIII_vsII>0),]
+#df<- keggT
+df.ordered<- df[order(df$adjusted_p_value__PhyIII_vsII),]
+df.ordered <- df.ordered [c(1,2,3,4,5, 7,8,9,30)]
+df.newPhyIII_vsII <- df.ordered[c(1:listcutoff),]
+df.newPhyIII_vsII$type<- c("PhyIII_vsII")
+colnames(df.newPhyIII_vsII) <- sub("_PhyIII_vsII", "", colnames(df.newPhyIII_vsII))
+
+
+#PhyIII_vsI
+df<- keggT[which(keggT$intersection_size__PhyIII_vsI>0),]
+#df<- keggT
+df.ordered<- df[order(df$adjusted_p_value__PhyIII_vsI),]
+df.ordered <- df.ordered [c(1,2,3,4,5,  11,12,13,31)]
+df.newPhyIII_vsI <- df.ordered[c(1:listcutoff),]
+df.newPhyIII_vsI$type<- c("PhyIII_vsI")
+colnames(df.newPhyIII_vsI) <- sub("_PhyIII_vsI", "", colnames(df.newPhyIII_vsI))
+
+
+#PhyII_vsI
+df<- keggT[which(keggT$intersection_size__PhyII_vsI>0),]
+#df<- keggT
+df.ordered<- df[order(df$adjusted_p_value__PhyII_vsI),]
+df.ordered <- df.ordered [c(1,2,3,4,5,  15,16,17, 32)]
+df.newPhyII_vsI <- df.ordered[c(1:listcutoff),]
+df.newPhyII_vsI$type<- c("PhyII_vsI")
+colnames(df.newPhyII_vsI) <- sub("_PhyII_vsI", "", colnames(df.newPhyII_vsI))
+
+#PhyIV_vsIII
+df<- keggT[which(keggT$intersection_size__PhyIV_vsIII>0),]
+#df<- keggT
+df.ordered<- df[order(df$adjusted_p_value__PhyIV_vsIII),]
+df.ordered <- df.ordered [c(1,2,3,4,5,  19,20,21, 33)]
+df.newPhyIV_vsIII <- df.ordered[c(1:listcutoff),]
+df.newPhyIV_vsIII$type<- c("PhyIV_vsIII")
+colnames(df.newPhyIV_vsIII) <- sub("_PhyIV_vsIII", "", colnames(df.newPhyIV_vsIII))
+
+#PhyIV_vsII
+df<- keggT[which(keggT$intersection_size__PhyIV_vsII>0),]
+#df<- keggT
+df.ordered<- df[order(df$adjusted_p_value__PhyIV_vsII),]
+df.ordered <- df.ordered [c(1,2,3,4,5,  23,24,25, 34)]
+df.newPhyIV_vsII <- df.ordered[c(1:listcutoff),]
+df.newPhyIV_vsII$type<- c("PhyIV_vsII")
+colnames(df.newPhyIV_vsII) <- sub("_PhyIV_vsII", "", colnames(df.newPhyIV_vsII))
+
+#PhyIV_vsI
+df<- keggT[which(keggT$intersection_size__PhyIV_vsI>0),]
+#df<- keggT
+df.ordered<- df[order(df$adjusted_p_value__PhyIV_vsI),]
+df.ordered <- df.ordered [c(1,2,3,4,5,  27,28,29, 35)]
+df.newPhyIV_vsI <- df.ordered[c(1:listcutoff),]
+df.newPhyIV_vsI$type<- c("PhyIV_vsI")
+colnames(df.newPhyIV_vsI) <- sub("_PhyIV_vsI", "", colnames(df.newPhyIV_vsI))
+
+
+#part1
+
+df.combo <- rbind(df.newPhyII_vsI,df.newPhyIII_vsI,df.newPhyIV_vsI)#,df.newPhyIII_vsII,df.newPhyIV_vsII,df.newPhyIV_vsIII)
+df.combo<- na.omit(df.combo)
+df.combo$Gene_count<- df.combo$term_size
+df.combo$adj.Pval<- df.combo$adjusted_p_value_
+
+p1<- ggplot(df.combo, aes(x = df.combo$GeneRatio, y = fct_reorder(term_name, GeneRatio))) + 
+  geom_point(aes(size = Gene_count, color = adj.Pval)) +
+  theme_bw(base_size = 8) + scale_size(range=c(2,12),breaks=c(0,1,10,100,1000),labels=c(">=0",">=1",">=10",">=100",">=1000"),guide="legend")+
+  scale_colour_gradient(limits=c(0, 0.10), low="red") +
+  xlab("GeneRatio") + ylab(NULL)  +
+  ggtitle("KEGG pathway enrichment") + facet_grid(.~type) +
+  xlim(0 ,0.60)
+
+ggsave(p1, file = file.path(outdir,"Figure_10_KEGGpathway_enrichment_output_part1.pdf"))
+ggsave(p1, file = file.path(outdir,"Figure_10_KEGGpathway_enrichment_output_part1.png"))
+ggsave(p1, file = file.path(outdir,"Figure_10_KEGGpathway_enrichment_output_part1.jpg"))
+
+
+knitr::include_graphics("Result_Analysis_Petunia/output_FC_2.0_FDR_0.05/Tables/GO_and_KEGG_analysis/Figure_10_KEGGpathway_enrichment_output_part1.png")
+```
+<br>
+b)  PhyIII_vsII, PhyIV_vsII and PhyIV_vsIII
+
+```{r fig23, fig.cap="KEGG pathway analysis: Comparison between 3 group"}
+
+#part2
+
+df.combo <- rbind(df.newPhyIII_vsII,df.newPhyIV_vsII,df.newPhyIV_vsIII)
+df.combo<- na.omit(df.combo)
+df.combo$Gene_count<- df.combo$term_size
+df.combo$adj.Pval<- df.combo$adjusted_p_value_
+
+p2<- ggplot(df.combo, aes(x = df.combo$GeneRatio, y = fct_reorder(term_name, GeneRatio))) + 
+  geom_point(aes(size = Gene_count, color = adj.Pval)) +
+  theme_bw(base_size = 8) + scale_size(range=c(2,12),breaks=c(0,1,10,100,1000),labels=c(">=0",">=1",">=10",">=100",">=1000"),guide="legend")+
+  scale_colour_gradient(limits=c(0, 0.10), low="red") +
+  xlab("GeneRatio") + ylab(NULL)  +
+  ggtitle("KEGG pathway enrichment") + facet_grid(.~type) +
+  xlim(0 ,0.60)
+
+ggsave(p2, file = file.path(outdir,"Figure_10_KEGGpathway_enrichment_output_part2.pdf"))
+ggsave(p2, file = file.path(outdir,"Figure_10_KEGGpathway_enrichment_output_part2.png"))
+ggsave(p2, file = file.path(outdir,"Figure_10_KEGGpathway_enrichment_output_part2.jpg"))
+
+knitr::include_graphics("Result_Analysis_Petunia/output_FC_2.0_FDR_0.05/Tables/GO_and_KEGG_analysis/Figure_10_KEGGpathway_enrichment_output_part2.png")
+```
+<br>
+
+
+### DEG Tables for each contrast
+
+a)  List of Tables with LogFC, pvalue and FDR value.
+
+    + Table_deg_PhyIII_vsI.csv
+    + Table_deg_PhyIII_vsII.csv 
+    + Table_deg_PhyII_vsI.csv
+    + Table_deg_PhyIV_vsI.csv 
+    + Table_deg_PhyIV_vsII.csv
+    + Table_deg_PhyIV_vsIII.csv 
+
+b)  List of Master Tables with LogFC, pvalue and FDR value and Functional_annotation, TAIR10 homolog ID, GO term etc.
+
+    + Table_PhyIII_vsII__DEG_masterfile.csv
+    + Table_PhyII_vsI__DEG_masterfile.csv
+    + Table_PhyIV_vsII__DEG_masterfile.csv
+    + Table_PhyIII_vsI__DEG_masterfile.csv
+    + Table_PhyIV_vsIII__DEG_masterfile.csv
+    + Table_PhyIV_vsI__DEG_masterfile.csv
+    
+  
+  
+
+ 
+
+
+
+# Methodology {#methods}
+
+<br>
+
+### Differential expression analysis:
+
+
+Adaptor sequences and low-quality score containing bases (Phred score < 30) were trimmed from reads using Trimmomatic (Bolger, Lohse, and Usadel 2014). The resulting reads were aligned to the  Petunia axillaris and Nicotiana tabacum genome, using STAR (Dobin et al 2012). Read counts are obtained using HTSeq (Anders et al 2015). The R package limma (Ritchie et al 2015) was used to identify differences in expression levels between the groups. Nominal p-values were corrected for multiple testing using the Benjamini-Hochberg method. Arabidopsis homologs for each gene was obtained using BLASTP (Camacho et al, 2008)
+
+<br>
+ 
+
+### Gene Ontology (GO) and KEGG enrichment analysis:
+
+We considered all the genes which were differentially expressed. Functional enrichment analyses (Gene Ontology and KEGGs) were performed with gProfileR (Reimand  et al 2009). Enrichment p-values were based on a hypergeometric test using the set of known human genes as background.  The default “g:SCS method “ was applied for multiple testing correction.  It corresponds to an experiment-wide threshold of a=0.05, i.e. at least 95% of matches above threshold are statistically significant.
+ 
+<br>
+
+#### Reference:  {-}
+
+
+<br>
+
+1. Reimand J, Arak T, Adler P, Kolberg L, Reisberg S, Peterson H, Vilo J.
+g:Profiler-a web server for functional interpretation of gene lists (2016
+update). Nucleic Acids Res. 2016 Jul 8;44(W1):W83-9. doi: 10.1093/nar/gkw199.
+Epub 2016 Apr 20. 
+
+2. Bolger, A.M., Lohse, M. and Usadel, B., 2014. Trimmomatic: a flexible trimmer for Illumina sequence data. Bioinformatics, 30(15), pp.2114-2120.
+
+3. Anders, S., Pyl, P.T. and Huber, W., 2015. HTSeq—a Python framework to work with high-throughput sequencing data. Bioinformatics, 31(2), pp.166-169.
+
+4. Dobin, A., Davis, C.A., Schlesinger, F., Drenkow, J., Zaleski, C., Jha, S., Batut, P., Chaisson, M. and Gingeras, T.R., 2013. STAR: ultrafast universal RNA-seq aligner. Bioinformatics, 29(1), pp.15-21.
+
+5.  Ritchie, M.E., Phipson, B., Wu, D., Hu, Y., Law, C.W., Shi, W. and Smyth, G.K., 2015. limma powers differential expression analyses for RNA-sequencing and microarray studies. Nucleic acids research, 43(7), pp.e47-e47.
+  
+6.  Camacho C., Coulouris G., Avagyan V., Ma N., Papadopoulos J., Bealer K., & Madden T.L. (2008) "BLAST+: architecture and applications." BMC Bioinformatics 10:421
+
+
+
+
+
+
+
+
+ 
